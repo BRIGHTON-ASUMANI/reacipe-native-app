@@ -9,7 +9,11 @@ dist/
 web-build/
 expo-env.d.ts
 
-# Native
+# Native (if using Bare workflow)
+android/
+ios/
+
+# Native build files
 *.orig.*
 *.jks
 *.p8
@@ -17,10 +21,10 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
-# Metro
+# Metro bundler
 .metro-health-check*
 
-# debug
+# Debug logs
 npm-debug.*
 yarn-debug.*
 yarn-error.*
@@ -30,9 +34,11 @@ yarn-error.*
 *.pem
 
 # local env files
-.env*.local
+.env*
+.*env
 
-# typescript
+# Typescript build info
 *.tsbuildinfo
 
+# app-example (example of ignoring specific files)
 app-example
