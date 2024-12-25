@@ -1,9 +1,8 @@
-// RecipeDetails.tsx
-import React from 'react';
 import { View, Text, ScrollView, Image } from 'react-native';
 import { RouteProp } from '@react-navigation/native';
-import { RootStackParamList } from '@/types';
+import { RootStackParamList } from '@/types'; // Importing RootStackParamList type
 
+// Define the Recipe type
 type Recipe = {
   title: string;
   description: string;
@@ -12,13 +11,19 @@ type Recipe = {
   steps: string[];
 };
 
+// Define the RecipeDetailsProps type that includes route as a prop
 type RecipeDetailsProps = {
   route: RouteProp<RootStackParamList, 'RecipeDetails'>;
 };
 
+// The RecipeDetails component
 const RecipeDetails: React.FC<RecipeDetailsProps> = ({ route }) => {
-  // Destructure recipe from route.params
-  const { recipe }: { recipe: Recipe } = route.params;
+  // Add defensive check for route.params
+  if (!route.params) {
+    return <Text>No recipe data found</Text>; // Display an error message if no params are found
+  }
+
+  const { recipe }: { recipe: Recipe } = route.params; // Extract the recipe from params
 
   return (
     <ScrollView className="flex-1 p-5 bg-gray-100">

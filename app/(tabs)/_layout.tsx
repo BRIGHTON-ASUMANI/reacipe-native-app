@@ -34,7 +34,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
+      {/* <Tabs.Screen
         name="recipeDetails"
         options={{
           title: 'Recipe Details',
@@ -42,7 +42,7 @@ export default function TabLayout() {
             <FontAwesome name="book" size={28} color={color} />
           ),
         }}
-      />
+      /> */}
       <Tabs.Screen
         name="preference"
         options={{
