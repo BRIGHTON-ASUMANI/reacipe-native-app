@@ -1,12 +1,20 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
-import { useNavigation } from '@react-navigation/native'; // Navigation hook
+import { 
+  View, 
+  Text, 
+  FlatList, 
+  TouchableOpacity, 
+  Image, 
+  TextInput,
+  StyleSheet 
+} from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/supabase';
-import { ScrollView } from 'react-native-gesture-handler';
 import EmptyRecipeList from '@/components/EmptyRecipeList';
+import { Session } from '@supabase/supabase-js';
 
-// Define type for a recipe
+// Types
 type Recipe = {
   id: number;
   image: string;
@@ -15,62 +23,232 @@ type Recipe = {
   preference: string;
 };
 
-// Define type for navigation stack
 type RootStackParamList = {
   Home: undefined;
-  RecipeDetails: { recipe: Recipe }; // Define the params for RecipeDetails
+  RecipeDetails: { recipe: Recipe };
+  Auth: undefined;
 };
 
-// Define type for navigation prop for HomeScreen
-type HomeScreenNavigationProp = NativeStackNavigationProp<
-  RootStackParamList,
-  'Home'
->;
+type HomeScreenNavigationProp = NativeStackNavigationProp<RootStackParamList, 'Home'>;
 
 const HomeScreen: React.FC = () => {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
-  const navigation = useNavigation<HomeScreenNavigationProp>(); // Correctly typed navigation hook
+  const [filteredRecipes, setFilteredRecipes] = useState<Recipe[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [session, setSession] = useState<Session | null>(null);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const navigation = useNavigation<HomeScreenNavigationProp>();
 
   useEffect(() => {
     fetchRecipes();
+    checkSession();
   }, []);
+
+  const checkSession = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    setSession(session);
+  };
 
   // Function to fetch recipes from Supabase
   const fetchRecipes = async () => {
     const { data, error } = await supabase
-      .from('recipes') 
-      .select('*')
-      .eq('preference', 'vegetarian'); // Example preference
+      .from('recipes')
+      .select('*');
 
     if (error) {
       console.error('Error fetching recipes:', error.message);
     } else {
-      setRecipes(data || []);  // Ensure data is either set to fetched data or an empty array
+      setRecipes(data || []);
+      setFilteredRecipes(data || []);
     }
   };
 
-  // Render each recipe item
+  // Search functionality with autocomplete
+  const handleSearch = (text: string) => {
+    setSearchQuery(text);
+    
+    if (text.trim() === '') {
+      setFilteredRecipes(recipes);
+      setSuggestions([]);
+      return;
+    }
+
+    // Generate suggestions based on titles
+    const searchSuggestions = recipes
+      .map(recipe => recipe.title)
+      .filter(title => 
+        title.toLowerCase().includes(text.toLowerCase())
+      )
+      .slice(0, 5); // Limit to 5 suggestions
+
+    setSuggestions(searchSuggestions);
+
+    // Filter recipes based on search
+    const filtered = recipes.filter(recipe =>
+      recipe.title.toLowerCase().includes(text.toLowerCase()) ||
+      recipe.description.toLowerCase().includes(text.toLowerCase()) ||
+      recipe.preference.toLowerCase().includes(text.toLowerCase())
+    );
+    
+    setFilteredRecipes(filtered);
+  };
+
+  // Handle favorites
+  const toggleFavorite = async (recipeId: number) => {
+    if (!session) {
+      navigation.navigate('Auth');
+      return;
+    }
+
+    // Implementation for adding/removing favorites
+    const { data: existingFavorite } = await supabase
+      .from('favorites')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .eq('recipe_id', recipeId)
+      .single();
+
+    if (existingFavorite) {
+      await supabase
+        .from('favorites')
+        .delete()
+        .eq('user_id', session.user.id)
+        .eq('recipe_id', recipeId);
+    } else {
+      await supabase
+        .from('favorites')
+        .insert([
+          { user_id: session.user.id, recipe_id: recipeId }
+        ]);
+    }
+  };
+
   const renderRecipe = ({ item }: { item: Recipe }) => (
     <TouchableOpacity
-      className="p-3 mb-3 bg-white rounded-lg"
+      style={styles.recipeCard}
       onPress={() => navigation.navigate('RecipeDetails', { recipe: item })}
     >
-      <Image source={{ uri: item.image }} className="h-40 rounded-lg" />
-      <Text className="text-lg font-bold mt-2">{item.title}</Text>
-      <Text className="text-gray-500 mt-1">{item.description}</Text>
+      <Image 
+        source={{ uri: item.image }} 
+        style={styles.recipeImage}
+      />
+      <View style={styles.recipeInfo}>
+        <Text style={styles.recipeTitle}>{item.title}</Text>
+        <Text style={styles.recipeDescription}>{item.description}</Text>
+        {session && (
+          <TouchableOpacity 
+            onPress={() => toggleFavorite(item.id)}
+            style={styles.favoriteButton}
+          >
+            <Text>♥</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 
   return (
-    <View className="flex-1 p-5 bg-gray-100">
+    <View style={styles.container}>
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Search recipes..."
+          value={searchQuery}
+          onChangeText={handleSearch}
+        />
+        {suggestions.length > 0 && (
+          <View style={styles.suggestionsContainer}>
+            {suggestions.map((suggestion, index) => (
+              <TouchableOpacity
+                key={index}
+                style={styles.suggestionItem}
+                onPress={() => {
+                  setSearchQuery(suggestion);
+                  handleSearch(suggestion);
+                  setSuggestions([]);
+                }}
+              >
+                <Text>{suggestion}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
+      </View>
+      
       <FlatList
-        data={recipes}
-        keyExtractor={(item) => item.id.toString()}
+        data={filteredRecipes}
+        keyExtractor={item => item.id.toString()}
         renderItem={renderRecipe}
-        ListEmptyComponent={<EmptyRecipeList />}
+        ListEmptyComponent={EmptyRecipeList}
       />
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 16,
+  },
+  searchContainer: {
+    marginBottom: 16,
+    zIndex: 1,
+  },
+  searchInput: {
+    height: 40,
+    borderColor: '#ccc',
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    backgroundColor: 'white',
+  },
+  suggestionsContainer: {
+    position: 'absolute',
+    top: 45,
+    left: 0,
+    right: 0,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    maxHeight: 200,
+  },
+  suggestionItem: {
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  recipeCard: {
+    flexDirection: 'row',
+    backgroundColor: 'white',
+    borderRadius: 8,
+    marginBottom: 16,
+    overflow: 'hidden',
+    elevation: 2,
+  },
+  recipeImage: {
+    width: 100,
+    height: 100,
+  },
+  recipeInfo: {
+    flex: 1,
+    padding: 12,
+  },
+  recipeTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4,
+  },
+  recipeDescription: {
+    fontSize: 14,
+    color: '#666',
+  },
+  favoriteButton: {
+    position: 'absolute',
+    right: 12,
+    top: 12,
+    padding: 8,
+  },
+});
 
 export default HomeScreen;
