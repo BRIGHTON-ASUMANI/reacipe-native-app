@@ -20,8 +20,11 @@ type RecipeDetailsProps = {
 const RecipeDetails: React.FC<RecipeDetailsProps> = ({ route }) => {
   // Add defensive check for route.params
   if (!route.params) {
-    return <Text>No recipe data found</Text>; // Display an error message if no params are found
-  }
+    return (
+      <ScrollView className="flex-1 p-5 bg-gray-100">
+        <Text className='color-red'>No recipe found</Text>
+      </ScrollView>
+  )}
 
   const { recipe }: { recipe: Recipe } = route.params; // Extract the recipe from params
 

@@ -3,6 +3,8 @@ import { View, Text, FlatList, TouchableOpacity, Image } from 'react-native';
 import { useNavigation } from '@react-navigation/native'; // Navigation hook
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { supabase } from '@/supabase';
+import { ScrollView } from 'react-native-gesture-handler';
+import EmptyRecipeList from '@/components/EmptyRecipeList';
 
 // Define type for a recipe
 type Recipe = {
@@ -65,7 +67,7 @@ const HomeScreen: React.FC = () => {
         data={recipes}
         keyExtractor={(item) => item.id.toString()}
         renderItem={renderRecipe}
-        ListEmptyComponent={<Text className="text-center text-gray-500">No recipes found</Text>}
+        ListEmptyComponent={<EmptyRecipeList />}
       />
     </View>
   );
